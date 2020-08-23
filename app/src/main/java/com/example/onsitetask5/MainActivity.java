@@ -7,11 +7,14 @@ import androidx.fragment.app.DialogFragment;
 
 import android.Manifest;
 import android.app.AlarmManager;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.text.format.DateFormat;
@@ -29,12 +32,14 @@ public class MainActivity extends AppCompatActivity implements TimePickerDialog.
     private EditText phoneNumberEditText,messageEditText;
     private Button selectTimeButton,cancelMessageButton;
     private TextView msgInfo;
+    public static final String CHANNEL_ID = "exampleServiceChannel";
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        createNotificationChannel();
         if(ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS)!= PackageManager.PERMISSION_GRANTED){
             ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.SEND_SMS},1);
         }else{
@@ -68,12 +73,13 @@ public class MainActivity extends AppCompatActivity implements TimePickerDialog.
         });
     }
     public void cancelSchedule(){
-        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        /*AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
         Intent intent = new Intent(this,AlertReciever.class);
         intent.putExtra("phoneNumber",phoneNumberEditText.getText().toString());
         intent.putExtra("message",messageEditText.getText().toString());
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(this,1,intent,0);
-        alarmManager.cancel(pendingIntent);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(this,1,intent,0);*/
+        Intent intent = new Intent(this,AlertService.class);
+        stopService(intent);
         Toast.makeText(MainActivity.this, "Cancelled successfully", Toast.LENGTH_SHORT).show();
         msgInfo.setText("To:(no body)\n Msg:(no message)\n Time:(no Time)");
 
@@ -93,12 +99,16 @@ public class MainActivity extends AppCompatActivity implements TimePickerDialog.
     }
 
     public void scheduleMessage(Calendar c){
-        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-        Intent intent = new Intent(this,AlertReciever.class);
+      //  AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(this,AlertService.class);
         intent.putExtra("phoneNumber",phoneNumberEditText.getText().toString());
         intent.putExtra("message",messageEditText.getText().toString());
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(this,1,intent,0);
-        alarmManager.setExact(AlarmManager.RTC_WAKEUP,c.getTimeInMillis(),pendingIntent);
+        intent.putExtra("hour",c.get(Calendar.HOUR_OF_DAY));
+        intent.putExtra("min",c.get(Calendar.MINUTE));
+        ContextCompat.startForegroundService(this,intent);
+        //PendingIntent pendingIntent = PendingIntent.getBroadcast(this,1,intent,0);
+      //  alarmManager.setRepeating(AlarmManager.RTC_WAKEUP,c.getTimeInMillis(),AlarmManager.INTERVAL_DAY,pendingIntent);
+
         Toast.makeText(MainActivity.this, "Scheduled successfully", Toast.LENGTH_SHORT).show();
         phoneNumberEditText.setText("");
         messageEditText.setText("");
@@ -116,5 +126,18 @@ public class MainActivity extends AppCompatActivity implements TimePickerDialog.
                 }
                 break;
         }
+    }
+    private void createNotificationChannel(){
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel serviceChannel = new NotificationChannel(
+                    CHANNEL_ID,
+                    "Example Service Channel",
+                    NotificationManager.IMPORTANCE_DEFAULT
+            );
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            manager.createNotificationChannel(serviceChannel);
+        }
+
     }
 }
